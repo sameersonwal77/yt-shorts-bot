@@ -33,4 +33,5 @@ jobs:
         ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
         PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
         YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-      run: python main.py
+    GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    run: python main.py
