@@ -1,0 +1,36 @@
+name: Daily YouTube Shorts Upload
+
+on:
+  schedule:
+    - cron: '30 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  upload-short:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install FFmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+    
+    - name: Install Python packages
+      run: |
+        pip install anthropic requests google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+    
+    - name: Run bot
+      env:
+        CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+        ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+        PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+      run: python main.py
