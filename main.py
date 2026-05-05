@@ -14,7 +14,7 @@ import random
 # ============================================
 # API KEYS - GitHub Secrets se aayengi
 # ============================================
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 
@@ -44,17 +44,7 @@ def generate_script():
     
     topic = random.choice(topics)
     
-    headers = {
-        "Authorization": f"Bearer {GROQ_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    
-    data = {
-        "model": "llama3-8b-8192",
-        "messages": [
-            {
-                "role": "user",
-                "content": f"""Write a powerful 55-second YouTube Shorts script about: {topic}
+    prompt = f"""Write a powerful 55-second YouTube Shorts script about: {topic}
 
 Rules:
 - Start with a HOOK that grabs attention in first 3 seconds
@@ -65,25 +55,20 @@ Rules:
 - Language: English (US audience)
 - No hashtags, no labels, just the script text
 - Keep it under 120 words"""
-            }
-        ],
-        "max_tokens": 300,
-        "temperature": 0.8
-    }
-    
+
     response = requests.post(
-        "https://api.groq.com/openai/v1/chat/completions",
-        headers=headers,
-        json=data
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}",
+        headers={"Content-Type": "application/json"},
+        json={"contents": [{"parts": [{"text": prompt}]}]}
     )
     
     result = response.json()
-    print(f"Groq Response: {result}")  # Debug ke liye
+    print(f"Gemini Response status: {response.status_code}")
     
-    if "choices" not in result:
-        raise Exception(f"Groq API Error: {result}")
+    if "candidates" not in result:
+        raise Exception(f"Gemini API Error: {result}")
     
-    script = result["choices"][0]["message"]["content"]
+    script = result["candidates"][0]["content"]["parts"][0]["text"]
     print(f"✅ Script ready!")
     return script, topic
 
