@@ -78,6 +78,11 @@ Rules:
     )
     
     result = response.json()
+    print(f"Groq Response: {result}")  # Debug ke liye
+    
+    if "choices" not in result:
+        raise Exception(f"Groq API Error: {result}")
+    
     script = result["choices"][0]["message"]["content"]
     print(f"✅ Script ready!")
     return script, topic
