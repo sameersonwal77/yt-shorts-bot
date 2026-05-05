@@ -42,7 +42,7 @@ def generate_script():
     topic = random.choice(topics)
     
     message = client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model="claude-opus-4-5",
         max_tokens=500,
         messages=[
             {
