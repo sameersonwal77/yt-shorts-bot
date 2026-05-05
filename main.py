@@ -1,4 +1,3 @@
-import anthropic
 import requests
 import os
 import subprocess
@@ -10,20 +9,20 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import pickle
+import random
 
 # ============================================
 # API KEYS - GitHub Secrets se aayengi
 # ============================================
-CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY")
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
 
 # ============================================
-# STEP 1: Claude se script generate karo
+# STEP 1: Groq se script generate karo (FREE)
 # ============================================
 def generate_script():
-    print("📝 Claude se script generate ho rahi hai...")
-    client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
+    print("📝 Script generate ho rahi hai...")
     
     topics = [
         "how to manifest your dream life",
@@ -35,20 +34,28 @@ def generate_script():
         "scripting technique for manifestation",
         "how thoughts create reality",
         "gratitude and manifestation",
-        "how to visualize effectively"
+        "how to visualize effectively",
+        "why your manifestations are blocked",
+        "333 manifestation method",
+        "how to manifest money fast",
+        "shifting your identity to manifest",
+        "living in the end manifestation technique"
     ]
     
-    import random
     topic = random.choice(topics)
     
-    message = client.messages.create(
-        model="claude-opus-4-5",
-        max_tokens=500,
-        messages=[
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    data = {
+        "model": "llama3-8b-8192",
+        "messages": [
             {
                 "role": "user",
                 "content": f"""Write a powerful 55-second YouTube Shorts script about: {topic}
-                
+
 Rules:
 - Start with a HOOK that grabs attention in first 3 seconds
 - Speak directly to viewer (use "you")
@@ -56,13 +63,23 @@ Rules:
 - End with "Follow for daily manifestation tips"
 - Tone: calm, spiritual, inspiring
 - Language: English (US audience)
-- No hashtags, no labels, just the script text"""
+- No hashtags, no labels, just the script text
+- Keep it under 120 words"""
             }
-        ]
+        ],
+        "max_tokens": 300,
+        "temperature": 0.8
+    }
+    
+    response = requests.post(
+        "https://api.groq.com/openai/v1/chat/completions",
+        headers=headers,
+        json=data
     )
     
-    script = message.content[0].text
-    print(f"✅ Script ready: {script[:100]}...")
+    result = response.json()
+    script = result["choices"][0]["message"]["content"]
+    print(f"✅ Script ready!")
     return script, topic
 
 # ============================================
@@ -71,8 +88,7 @@ Rules:
 def generate_voice(script):
     print("🎙️ Voice generate ho rahi hai...")
     
-    # Rachel voice - calm and spiritual
-    voice_id = "21m00Tcm4TlvDq8ikWAM"
+    voice_id = "21m00Tcm4TlvDq8ikWAM"  # Rachel - calm spiritual voice
     
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
     headers = {
@@ -84,8 +100,7 @@ def generate_voice(script):
         "model_id": "eleven_monolingual_v1",
         "voice_settings": {
             "stability": 0.6,
-            "similarity_boost": 0.7,
-            "style": 0.3
+            "similarity_boost": 0.7
         }
     }
     
@@ -108,10 +123,9 @@ def get_background_video():
         "galaxy stars cosmic",
         "nature peaceful zen",
         "lotus flower spiritual",
-        "sunrise meditation"
+        "sunrise meditation sky"
     ]
     
-    import random
     query = random.choice(queries)
     
     headers = {"Authorization": PEXELS_API_KEY}
@@ -122,8 +136,11 @@ def get_background_video():
         "per_page": 10
     }
     
-    response = requests.get("https://api.pexels.com/videos/search", 
-                           headers=headers, params=params)
+    response = requests.get(
+        "https://api.pexels.com/videos/search",
+        headers=headers,
+        params=params
+    )
     data = response.json()
     
     videos = data.get("videos", [])
@@ -132,15 +149,19 @@ def get_background_video():
         return None
     
     video = random.choice(videos[:5])
-    
-    # Best quality portrait video file lo
     video_files = video.get("video_files", [])
-    portrait_files = [f for f in video_files if f.get("quality") in ["hd", "sd"]]
     
-    if not portrait_files:
-        portrait_files = video_files
+    # Portrait/HD file lo
+    best_file = None
+    for f in video_files:
+        if f.get("width", 0) < f.get("height", 0):  # Portrait check
+            best_file = f
+            break
     
-    video_url = portrait_files[0]["link"]
+    if not best_file:
+        best_file = video_files[0]
+    
+    video_url = best_file["link"]
     
     video_response = requests.get(video_url, stream=True)
     with open("background.mp4", "wb") as f:
@@ -158,24 +179,26 @@ def create_video(audio_file, video_file, topic):
     
     output_file = "final_video.mp4"
     
-    # Audio length nikalo
+    # Audio duration nikalo
     result = subprocess.run([
-        "ffprobe", "-v", "error", "-show_entries",
-        "format=duration", "-of", "json", audio_file
+        "ffprobe", "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "json", audio_file
     ], capture_output=True, text=True)
     
     duration = float(json.loads(result.stdout)["format"]["duration"])
-    duration = min(duration + 1, 60)  # Max 60 seconds
+    duration = min(duration + 1, 60)
     
-    # Video + Audio combine karo with looping background
+    # Video banao
     cmd = [
         "ffmpeg", "-y",
-        "-stream_loop", "-1",  # Background video loop karo
+        "-stream_loop", "-1",
         "-i", video_file,
         "-i", audio_file,
         "-t", str(duration),
-        "-vf", f"scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1",
+        "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1",
         "-c:v", "libx264",
+        "-preset", "fast",
         "-c:a", "aac",
         "-shortest",
         "-movflags", "+faststart",
@@ -196,7 +219,6 @@ def upload_to_youtube(video_file, topic):
     
     creds = None
     
-    # Token file check karo
     if os.path.exists("token.pickle"):
         with open("token.pickle", "rb") as token:
             creds = pickle.load(token)
@@ -205,7 +227,6 @@ def upload_to_youtube(video_file, topic):
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            # Client secrets file se flow chalao
             client_config = json.loads(os.environ.get("YOUTUBE_CLIENT_SECRET"))
             flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
             creds = flow.run_local_server(port=0)
@@ -215,7 +236,6 @@ def upload_to_youtube(video_file, topic):
     
     youtube = build("youtube", "v3", credentials=creds)
     
-    # Video metadata
     today = datetime.now().strftime("%B %d, %Y")
     
     body = {
@@ -226,16 +246,16 @@ def upload_to_youtube(video_file, topic):
 Daily manifestation tips to help you create the life you deserve.
 
 🔮 Law of Attraction
-💫 Manifestation Techniques  
+💫 Manifestation Techniques
 🌟 Mindset Shifts
 ✨ Spiritual Growth
 
 Follow for daily doses of manifestation energy!
 
-#LawOfAttraction #Manifestation #ShiftYourReality #Spiritual #Mindset #Abundance #Manifest #Motivation""",
-            "tags": ["law of attraction", "manifestation", "spiritual", "mindset", 
-                    "abundance", "shift your reality", "manifest", "motivation"],
-            "categoryId": "22",  # People & Blogs
+#LawOfAttraction #Manifestation #ShiftYourReality #Spiritual #Mindset #Abundance""",
+            "tags": ["law of attraction", "manifestation", "spiritual", 
+                    "mindset", "abundance", "shift your reality"],
+            "categoryId": "22",
             "defaultLanguage": "en",
             "defaultAudioLanguage": "en"
         },
@@ -245,10 +265,12 @@ Follow for daily doses of manifestation energy!
         }
     }
     
-    media = MediaFileUpload(video_file, 
-                           mimetype="video/mp4",
-                           resumable=True,
-                           chunksize=1024*1024)
+    media = MediaFileUpload(
+        video_file,
+        mimetype="video/mp4",
+        resumable=True,
+        chunksize=1024*1024
+    )
     
     request = youtube.videos().insert(
         part=",".join(body.keys()),
@@ -262,35 +284,26 @@ Follow for daily doses of manifestation energy!
         if status:
             print(f"Upload: {int(status.progress() * 100)}%")
     
-    print(f"✅ Video uploaded! ID: {response['id']}")
-    print(f"🔗 Link: https://youtube.com/shorts/{response['id']}")
+    print(f"✅ Video uploaded!")
+    print(f"🔗 https://youtube.com/shorts/{response['id']}")
     return response['id']
 
 # ============================================
-# MAIN FUNCTION
+# MAIN
 # ============================================
 def main():
     print("🚀 Shift Your Reality Bot Starting...")
     print("=" * 50)
     
     try:
-        # Step 1: Script
         script, topic = generate_script()
-        
-        # Step 2: Voice
         audio = generate_voice(script)
-        
-        # Step 3: Background
         background = get_background_video()
-        
-        # Step 4: Video
         video = create_video(audio, background, topic)
-        
-        # Step 5: Upload
         video_id = upload_to_youtube(video, topic)
         
         print("=" * 50)
-        print("🎉 SUCCESS! Video uploaded successfully!")
+        print("🎉 SUCCESS!")
         print(f"🔗 https://youtube.com/shorts/{video_id}")
         
     except Exception as e:
